@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batteryLevel, batteryPercent, detectBattery } from '../src/robot/battery';
+import { VoltageFilter, batteryLevel, batteryPercent, detectBattery } from '../src/robot/battery';
 
 describe('battery', () => {
   it('maps 4×AA pack voltage to a percentage', () => {
@@ -33,5 +33,15 @@ describe('battery', () => {
     expect(batteryLevel(80)).toBe('ok');
     expect(batteryLevel(20)).toBe('low');
     expect(batteryLevel(5)).toBe('empty');
+  });
+
+  it('smooths motor sag but takes fresh batteries at once', () => {
+    const f = new VoltageFilter();
+    let t = 0;
+    f.push(5.6, t);
+    let v = 0;
+    for (let i = 0; i < 10; i++) v = f.push(4.9, (t += 200)); // 2 s of driving
+    expect(v).toBeGreaterThan(5.4);
+    expect(f.push(6.6, (t += 200))).toBe(6.6);
   });
 });

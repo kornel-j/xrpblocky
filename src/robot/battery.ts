@@ -53,3 +53,26 @@ export function batteryLevel(percent: number): BatteryLevel {
   if (percent > 12) return 'low';
   return 'empty';
 }
+
+/**
+ * Smooths pack voltage so the percentage does not jump while the motors pull it
+ * down. Rises are followed slowly (a sag recovering is not a charge), drops a bit
+ * faster; a big jump up (fresh batteries) is taken at once.
+ */
+export class VoltageFilter {
+  private v: number | null = null;
+  private at = 0;
+
+  push(volts: number, nowMs: number): number {
+    if (!(volts > 0)) return this.v ?? volts;
+    if (this.v === null || volts - this.v > 0.6) {
+      this.v = volts;
+    } else {
+      const dt = Math.min(5, Math.max(0, (nowMs - this.at) / 1000));
+      const tau = volts > this.v ? 20 : 8;
+      this.v += (volts - this.v) * (1 - Math.exp(-dt / tau));
+    }
+    this.at = nowMs;
+    return this.v;
+  }
+}

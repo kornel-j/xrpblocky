@@ -2,13 +2,17 @@ import { BleLink, STOP_MESSAGE } from './ble';
 import { RawRepl, ReplTimeout } from './repl';
 import { XppParser, XppTable, gamepadAxesFrame, gamepadBeatFrame, gamepadButtonsFrame } from './xpp';
 import * as S from './snippets';
+import { VoltageFilter } from './battery';
 import { t } from '../i18n/ui';
 
 /** XRP drive motors: 48.75:1 gearbox × 12 counts per motor turn. */
 const COUNTS_PER_REV = 585;
 
 export interface Telemetry {
+  /** Pack voltage, smoothed (see VoltageFilter). */
   voltage?: number;
+  /** Last raw voltage reading. */
+  voltageRaw?: number;
   distance?: number;
   lineL?: number;
   lineR?: number;
@@ -83,6 +87,7 @@ export class BleRobot extends Emitter implements Robot {
   private running: Promise<unknown> | null = null;
   private stopRequested = false;
   private voltageTimer: ReturnType<typeof setInterval> | undefined;
+  private vFilter = new VoltageFilter();
 
   constructor(private device: BluetoothDevice) {
     super();
@@ -142,7 +147,7 @@ export class BleRobot extends Emitter implements Robot {
         }
         this.info = { machine, xrplib, id, hasDashboard: dash === '1' && this.link.hasDataChannel, slots: slotMap };
         const v = parseFloat(volts);
-        if (v > 0) this.telemetry = { ...this.telemetry, voltage: v };
+        if (v > 0) this.telemetry = { ...this.telemetry, voltage: this.vFilter.push(v, performance.now()), voltageRaw: v };
         this.emit('telemetry', this.telemetry);
       }
       await this.startTelemetry();
@@ -165,20 +170,22 @@ export class BleRobot extends Emitter implements Robot {
       const r = await this.repl.exec(S.VOLTAGE).catch(() => null);
       const v = r ? parseFloat(r.out) : NaN;
       if (v > 0) {
-        this.telemetry = { ...this.telemetry, voltage: v, at: performance.now() };
+        this.telemetry = { ...this.telemetry, voltage: this.vFilter.push(v, performance.now()), voltageRaw: v, at: performance.now() };
         this.emit('telemetry', this.telemetry);
       }
     }, 30000);
   }
 
   private onData(bytes: Uint8Array) {
-    let changed = false;
-    for (const p of this.parser.push(bytes)) if (this.table.apply(p).length) changed = true;
-    if (!changed) return;
+    const changed = new Set<string>();
+    for (const p of this.parser.push(bytes)) for (const n of this.table.apply(p)) changed.add(n);
+    if (!changed.size) return;
     const v = this.table.values;
     const deg = (n?: number) => (n === undefined ? undefined : (n / COUNTS_PER_REV) * 360);
+    const rawV = changed.has('$voltage') ? v.get('$voltage') : undefined;
     this.telemetry = {
-      voltage: v.get('$voltage') ?? this.telemetry.voltage,
+      voltage: rawV !== undefined ? this.vFilter.push(rawV, performance.now()) : this.telemetry.voltage,
+      voltageRaw: rawV ?? this.telemetry.voltageRaw,
       distance: v.get('$rangefinder.distance'),
       lineL: v.get('$reflectance.left'),
       lineR: v.get('$reflectance.right'),

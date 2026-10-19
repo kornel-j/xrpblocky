@@ -1,4 +1,5 @@
 import { tankMix } from './drive';
+import { VoltageFilter } from './battery';
 import { Emitter, type Robot, type RobotInfo, type RobotState, type Telemetry } from './robot';
 
 /** Demo robot for trying the app without hardware. Values are made up. */
@@ -39,8 +40,10 @@ export class SimRobot extends Emitter implements Robot {
     this.yaw = ((this.yaw + (r - l) * dt * 95 + 540) % 360) - 180;
     this.v = Math.max(4.4, this.v - dt * 0.0008);
     const load = (Math.abs(l) + Math.abs(r)) * 0.18;
+    const raw = this.v - load + (Math.random() - 0.5) * 0.01;
     this.telemetry = {
-      voltage: this.v - load + (Math.random() - 0.5) * 0.01,
+      voltage: this.vFilter.push(raw, performance.now()),
+      voltageRaw: raw,
       distance: Math.max(3, 38 + 26 * Math.sin(this.t / 2.7) + (Math.random() - 0.5) * 1.5),
       lineL: clamp01(0.5 + 0.45 * Math.sin(this.t / 1.9)),
       lineR: clamp01(0.5 - 0.45 * Math.sin(this.t / 1.9 + 0.6)),
@@ -57,6 +60,7 @@ export class SimRobot extends Emitter implements Robot {
   }
 
   private driving = false;
+  private vFilter = new VoltageFilter();
 
   private setState(s: RobotState) {
     this.state = s;

@@ -129,7 +129,7 @@ function attach(r: Robot) {
     telemetry: (tel) => {
       if (tel.voltage && performance.now() - lastVoltLog > 30000) {
         lastVoltLog = performance.now();
-        diag(`voltage ${tel.voltage.toFixed(3)} V`);
+        diag(`voltage ${tel.voltage.toFixed(3)} V (raw ${tel.voltageRaw?.toFixed(3) ?? '-'})`);
       }
       updateDashboard(tel);
       updateTopBattery();

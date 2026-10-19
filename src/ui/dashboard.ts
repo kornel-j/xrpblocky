@@ -91,6 +91,7 @@ export function updateDashboard(tel: Telemetry): void {
   const color = lvl === 'ok' ? 'var(--ok)' : lvl === 'low' ? 'var(--warn)' : 'var(--bad)';
   $('batPct')!.innerHTML = p === null ? '—' : `${p}<small>%</small>`;
   $('batV')!.textContent = tel.voltage ? fmt(tel.voltage, 2) + ' V' : '';
+  $('batV')!.title = tel.voltageRaw ? `${fmt(tel.voltageRaw, 2)} V` : '';
   const pill = $('batPill')!;
   pill.className = 'pill ' + (lvl === 'ok' ? 'ok' : lvl === 'low' ? 'warn' : lvl ? 'bad' : '');
   pill.textContent = lvl === 'ok' ? t('batOk') : lvl === 'low' ? t('batLow') : lvl ? t('batBad') : '';
