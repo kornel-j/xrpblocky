@@ -5,7 +5,7 @@ const hu = {
   connect: 'Csatlakozás', dash: 'Műszerfal', py: 'Python', drive: 'Vezetés', panel: 'Panel',
   zoomIn: 'Nagyítás', zoomOut: 'Kicsinyítés', undo: 'Visszavonás', redo: 'Újra',
   demoChip: 'Demó robot · a szenzorértékek szimuláltak',
-  battery: 'Akkumulátor', alk: 'Alkáli', nimh: 'NiMH', batOk: 'Jó', batLow: 'Cseréld hamarosan', batBad: 'Lemerült',
+  battery: 'Akkumulátor', batType: 'Akku típusa', batAuto: 'Automatikus: {t}', alk: 'Alkáli elem, 4 × AA', nimh: 'Tölthető AA akku (NiMH), 4 db', li1s: 'Li-ion/LiPo akku, 1 cellás', li2s: 'Li-ion/LiPo akku, 2 cellás', batOk: 'Jó', batLow: 'Cseréld hamarosan', batBad: 'Lemerült',
   distance: 'Távolság', line: 'Vonalérzékelők', left: 'Bal', right: 'Jobb',
   imu: 'Helyzet (IMU)', yaw: 'Irány', pitch: 'Bólintás', roll: 'Dőlés', motors: 'Kerekek és motorok', motor: 'Motor', pos: 'Helyzet',
   m3: '3.', m4: '4.', live: 'Élő adat · XPP', stale: 'Nincs friss adat', noDash: 'Ez a robot csak az akkut jelenti. Frissítsd az XRPLib-et az XRPCode-dal, és minden szenzor megjelenik.',
@@ -32,6 +32,7 @@ const hu = {
   reconnecting: 'Újracsatlakozás…', busy: 'A robot dolgozik…',
   linkLost: 'A Bluetooth-kapcsolat megszakadt, újracsatlakozás…', linkBack: 'Újra csatlakozva', linkGone: 'Nem sikerült újracsatlakozni',
   reconnectTo: 'Újracsatlakozás: {n}', needNewLib: 'A vezetéshez újabb XRPLib kell. Frissítsd az XRPCode-dal.',
+  copyLog: 'Hibanapló másolása', logCopied: 'A hibanapló a vágólapon. Illeszd be az üzenetedbe.',
   ok: 'OK', newVar: 'Új változó neve'
 };
 
@@ -42,7 +43,7 @@ const en: Record<UiKey, string> = {
   connect: 'Connect', dash: 'Dashboard', py: 'Python', drive: 'Drive', panel: 'Panel',
   zoomIn: 'Zoom in', zoomOut: 'Zoom out', undo: 'Undo', redo: 'Redo',
   demoChip: 'Demo robot · sensor values are simulated',
-  battery: 'Battery', alk: 'Alkaline', nimh: 'NiMH', batOk: 'Good', batLow: 'Replace soon', batBad: 'Empty',
+  battery: 'Battery', batType: 'Battery type', batAuto: 'Automatic: {t}', alk: 'Alkaline, 4 × AA', nimh: 'Rechargeable AA (NiMH), 4 cells', li1s: 'Li-ion/LiPo pack, 1 cell', li2s: 'Li-ion/LiPo pack, 2 cells', batOk: 'Good', batLow: 'Replace soon', batBad: 'Empty',
   distance: 'Distance', line: 'Line sensors', left: 'Left', right: 'Right',
   imu: 'Orientation (IMU)', yaw: 'Yaw', pitch: 'Pitch', roll: 'Roll', motors: 'Wheels and motors', motor: 'Motor', pos: 'Position',
   m3: '3rd', m4: '4th', live: 'Live · XPP', stale: 'No fresh data', noDash: 'This robot only reports its battery. Update XRPLib with XRPCode to see every sensor.',
@@ -69,6 +70,7 @@ const en: Record<UiKey, string> = {
   reconnecting: 'Reconnecting…', busy: 'The robot is busy…',
   linkLost: 'Bluetooth connection lost, reconnecting…', linkBack: 'Reconnected', linkGone: 'Could not reconnect',
   reconnectTo: 'Reconnect: {n}', needNewLib: 'Driving needs a newer XRPLib. Update it with XRPCode.',
+  copyLog: 'Copy diagnostic log', logCopied: 'Diagnostic log copied. Paste it into your message.',
   ok: 'OK', newVar: 'New variable name'
 };
 

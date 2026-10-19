@@ -10,6 +10,7 @@ import { batteryLevel } from './robot/battery';
 import { batteryOf, buildDashboard, updateDashboard } from './ui/dashboard';
 import { closeDialog, dialog, esc, installBlocklyDialogs, toast } from './ui/dialogs';
 import { ICON } from './ui/icons';
+import { diag, diagReport } from './ui/diag';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const store = {
@@ -109,8 +110,12 @@ function attach(r: Robot) {
   robot = r;
   const remembered = labelsFor(r.name);
   robotLabel = remembered ?? { name: r.name, color: ROBOT_COLORS[0][0] };
+  diag(`attach ${r.simulated ? 'demo' : 'ble'} robot ${r.name}`);
+  let lastVoltLog = 0;
   unsubscribe = r.on({
     state: (s) => {
+      diag(`state ${s}`);
+      if (s === 'ready' && r.info) diag(`info ${JSON.stringify(r.info)}`);
       renderTop();
       if (s === 'disconnected') {
         toast(t('disconnectedT'));
@@ -121,10 +126,17 @@ function attach(r: Robot) {
       if (s === 'ready') { setDriving(driving && r.state === 'running'); buildDash(); }
     },
     telemetry: (tel) => {
+      if (tel.voltage && performance.now() - lastVoltLog > 30000) {
+        lastVoltLog = performance.now();
+        diag(`voltage ${tel.voltage.toFixed(3)} V`);
+      }
       updateDashboard(tel);
       updateTopBattery();
     },
-    output: (text, kind) => log(text, kind)
+    output: (text, kind) => {
+      if (kind !== 'out') diag(`${kind} ${text}`);
+      log(text, kind);
+    }
   });
   $('demoChip').hidden = !r.simulated;
   renderTop();
@@ -229,6 +241,7 @@ async function connectBle(known?: BluetoothDevice) {
     attach(r);
     await r.connect();
   } catch (e) {
+    diag(`connect failed: ${(e as Error).message ?? e}`);
     r.disconnect();
     dialog(`<p class="warnbox">${esc(t('connectFail', { e: (e as Error).message ?? String(e) }))}</p><div class="actions"><button class="btn primary" type="button" id="fOk">${t('ok')}</button></div>`,
       () => { $('fOk').onclick = closeDialog; });
@@ -282,6 +295,7 @@ function toggleRobotMenu() {
   m.innerHTML = `<div style="display:flex;align-items:center;gap:10px"><span style="width:14px;height:14px;border-radius:50%;background:${robotLabel.color}"></span><b>${esc(robotLabel.name)}</b><span class="num" style="color:var(--muted);font-size:12px">${esc(r.name)}</span></div>
     <div class="kv"><span>${t('board')}</span><b>${esc(r.info?.machine ?? '—')}</b><span>${t('fw')}</span><b>${esc(r.info?.xrplib ?? '—')}</b><span>${t('link')}</span><b>${r.simulated ? 'Demo' : 'Bluetooth LE'}</b></div>
     <button class="btn" type="button" id="mId">${ICON.bulb}${t('identify')}</button>
+    <button class="btn" type="button" id="mLog">${ICON.code}${t('copyLog')}</button>
     <button class="btn" type="button" id="mDis">${t('disconnect')}</button>`;
   document.querySelector('.top')!.appendChild(m);
   $('mId').onclick = () => {
@@ -289,7 +303,8 @@ function toggleRobotMenu() {
     void r.identify(c[1]);
     closeMenu();
   };
-  $('mDis').onclick = () => { closeMenu(); r.disconnect(); };
+  $('mDis').onclick = () => { closeMenu(); diag('user disconnect'); r.disconnect(); };
+  $('mLog').onclick = () => { closeMenu(); void copyLog(); };
 }
 document.addEventListener('pointerdown', (e) => {
   const m = document.getElementById('rmenu');
@@ -336,6 +351,27 @@ function log(text: string, kind: 'out' | 'err' | 'sys') {
   con.scrollTop = con.scrollHeight;
 }
 $('clearCon').onclick = () => { con.innerHTML = ''; };
+$('copyLog').onclick = () => void copyLog();
+
+/** Copies the diagnostic log; if the clipboard is blocked, shows it for manual copying. */
+async function copyLog() {
+  const text = diagReport({
+    robot: robot ? `${robot.name} (${robot.simulated ? 'demo' : 'ble'}), state ${robot.state}` : 'none',
+    info: robot?.info ? JSON.stringify(robot.info) : '-',
+    voltage: robot?.telemetry.voltage?.toFixed(3) ?? '-',
+    battery: store.get('battery') ?? 'auto'
+  });
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(t('logCopied'));
+  } catch {
+    dialog(`<h2>${t('copyLog')}</h2><textarea id="logTxt" readonly style="width:100%;height:240px;font:12px var(--f-mono)">${esc(text)}</textarea>
+      <div class="actions"><button class="btn primary" type="button" id="lOk">${t('ok')}</button></div>`, () => {
+      ($('logTxt') as HTMLTextAreaElement).select();
+      $('lOk').onclick = closeDialog;
+    });
+  }
+}
 $('copyPy').onclick = async () => {
   try {
     await navigator.clipboard.writeText(python);
@@ -442,6 +478,7 @@ function renderStatic() {
   icon('zoomOut', ICON.minus, 'zoomOut');
   icon('undoBtn', ICON.undo, 'undo');
   $('copyPy').textContent = t('copy');
+  $('copyLog').textContent = t('copyLog');
   $('hornBtn').innerHTML = ICON.horn + t('horn');
   $('lightBtn').innerHTML = ICON.bulb + t('light');
   $('langHu').setAttribute('aria-pressed', String(lang() === 'hu'));

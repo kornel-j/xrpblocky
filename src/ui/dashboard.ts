@@ -1,15 +1,26 @@
-import { batteryLevel, batteryPercent, type BatteryType } from '../robot/battery';
+import { batteryLevel, batteryPercent, detectBattery, type BatterySetting, type BatteryType } from '../robot/battery';
 import type { Robot, Telemetry } from '../robot/robot';
 import { fmt, t } from '../i18n/ui';
 import { ICON } from './icons';
 
-let batType: BatteryType = 'alk';
+const SETTINGS: BatterySetting[] = ['auto', 'nimh', 'alk', 'li1s', 'li2s'];
+let batSetting: BatterySetting = 'auto';
 try {
-  const b = localStorage.getItem('xrpb.bat');
-  if (b === 'alk' || b === 'nimh') batType = b;
+  const b = localStorage.getItem('xrpb.battery') as BatterySetting | null;
+  if (b && SETTINGS.includes(b)) batSetting = b;
 } catch { /* ignore */ }
 
-export const getBatteryType = () => batType;
+/** Pack guessed from the first voltage reading of the current robot (kept for the session so it never flips). */
+let detected: { robot: Robot | null; type: BatteryType | null } = { robot: null, type: null };
+
+function batteryType(robot: Robot | null, tel: Telemetry): BatteryType {
+  if (batSetting !== 'auto') return batSetting;
+  if (detected.robot !== robot) detected = { robot, type: null };
+  if (!detected.type && tel.voltage && tel.voltage > 0) detected.type = detectBattery(tel.voltage, robot?.info?.machine);
+  return detected.type ?? 'nimh';
+}
+
+let current: Robot | null = null;
 
 const hist: number[] = [];
 const $ = (id: string) => document.getElementById(id);
@@ -19,6 +30,7 @@ const dash = () => $('paneDash')!;
 export function buildDashboard(robot: Robot | null, onConnect: () => void, onBatteryType: () => void): void {
   const el = dash();
   hist.length = 0;
+  current = robot;
   if (!robot || robot.state === 'disconnected') {
     el.innerHTML = `<div class="offline">${ICON.robot}<p>${t('offline')}</p><button class="btn primary" type="button" id="dashConn">${ICON.bt}${t('connect')}</button></div>`;
     $('dashConn')!.onclick = onConnect;
@@ -30,7 +42,7 @@ export function buildDashboard(robot: Robot | null, onConnect: () => void, onBat
     <h3>${t('battery')} <span class="pill" id="batPill"></span></h3>
     <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><b class="big" id="batPct">—</b><span class="num" id="batV" style="font-size:14px;color:var(--muted)"></span></div>
     <div class="batbar" id="batBar">${'<i></i>'.repeat(10)}</div>
-    <div class="batmeta"><span>4 × AA</span><span class="seg" role="group"><button type="button" data-b="alk">${t('alk')}</button><button type="button" data-b="nimh">${t('nimh')}</button></span></div>
+    <div class="batmeta"><label for="batSel">${t('batType')}</label><select id="batSel" class="batsel"></select></div>
   </div>
   ${full ? `
   <div class="card"><h3>${t('distance')} <span class="pill" id="liveTag"></span></h3><b class="big" id="dDist">—</b><svg class="spark" id="spark" viewBox="0 0 120 34" preserveAspectRatio="none"></svg></div>
@@ -50,19 +62,26 @@ export function buildDashboard(robot: Robot | null, onConnect: () => void, onBat
     <tr><td>${t('m3')}</td><td class="n" id="e3">—</td></tr>
     <tr><td>${t('m4')}</td><td class="n" id="e4">—</td></tr>
   </tbody></table></div>` : `<p class="warnbox">${t('noDash')}</p>`}`;
-  el.querySelectorAll<HTMLButtonElement>('[data-b]').forEach((b) => {
-    b.onclick = () => {
-      batType = b.dataset.b as BatteryType;
-      try { localStorage.setItem('xrpb.bat', batType); } catch { /* ignore */ }
-      updateDashboard(robot.telemetry);
-      onBatteryType();
-    };
-  });
+  const sel = $('batSel') as HTMLSelectElement;
+  sel.onchange = () => {
+    batSetting = sel.value as BatterySetting;
+    try { localStorage.setItem('xrpb.battery', batSetting); } catch { /* ignore */ }
+    updateDashboard(robot.telemetry);
+    onBatteryType();
+  };
   updateDashboard(robot.telemetry);
 }
 
 export function batteryOf(tel: Telemetry): number | null {
-  return tel.voltage !== undefined && tel.voltage > 0 ? batteryPercent(tel.voltage, batType) : null;
+  return tel.voltage !== undefined && tel.voltage > 0 ? batteryPercent(tel.voltage, batteryType(current, tel)) : null;
+}
+
+function renderBatterySelect(tel: Telemetry) {
+  const sel = $('batSel') as HTMLSelectElement | null;
+  if (!sel) return;
+  const auto = t('batAuto', { t: t(batteryType(current, { ...tel }) as 'alk') });
+  const html = SETTINGS.map((s) => `<option value="${s}"${s === batSetting ? ' selected' : ''}>${s === 'auto' ? auto : t(s as 'alk')}</option>`).join('');
+  if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
 }
 
 export function updateDashboard(tel: Telemetry): void {
@@ -80,7 +99,7 @@ export function updateDashboard(tel: Telemetry): void {
     el.className = on ? 'on' : '';
     (el as HTMLElement).style.background = on ? color : '';
   });
-  dash().querySelectorAll('[data-b]').forEach((b) => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.b === batType)));
+  renderBatterySelect(tel);
 
   if (!$('dDist')) return;
   const fresh = tel.at !== undefined && performance.now() - tel.at < 2500;

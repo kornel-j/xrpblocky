@@ -280,3 +280,5 @@ pre.code {
 .stale { opacity: .55; }
 .drivebar { display: flex; gap: 10px; }
 .drivebar .btn { flex: 1; }
+.batsel { font: 500 13px var(--f-ui); color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; max-width: 100%; min-width: 0; }
+.batmeta label { white-space: nowrap; }

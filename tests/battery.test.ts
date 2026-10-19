@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batteryLevel, batteryPercent } from '../src/robot/battery';
+import { batteryLevel, batteryPercent, detectBattery } from '../src/robot/battery';
 
 describe('battery', () => {
   it('maps 4×AA pack voltage to a percentage', () => {
@@ -16,6 +16,18 @@ describe('battery', () => {
       expect(p).toBeGreaterThanOrEqual(prev);
       prev = p;
     }
+  });
+  it('handles Li-ion packs', () => {
+    expect(batteryPercent(8.4, 'li2s')).toBe(100);
+    expect(batteryPercent(7.4, 'li2s')).toBe(40);
+    expect(batteryPercent(3.7, 'li1s')).toBe(40);
+  });
+  it('detects the pack from voltage and board', () => {
+    expect(detectBattery(7.8)).toBe('li2s');
+    expect(detectBattery(5.4)).toBe('nimh');
+    expect(detectBattery(3.9)).toBe('li1s');
+    expect(detectBattery(5.0, 'NanoXRP with RP2040')).toBe('li1s');
+    expect(detectBattery(undefined)).toBe('nimh');
   });
   it('labels levels', () => {
     expect(batteryLevel(80)).toBe('ok');

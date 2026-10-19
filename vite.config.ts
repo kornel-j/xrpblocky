@@ -1,9 +1,15 @@
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'node:child_process';
+
+const version = (() => {
+  try { return execSync('git rev-parse --short HEAD').toString().trim(); } catch { return 'dev'; }
+})();
 
 // BASE_PATH is set by the GitHub Pages workflow (e.g. "/xrpblocky/").
 export default defineConfig({
   base: process.env.BASE_PATH ?? '/',
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
