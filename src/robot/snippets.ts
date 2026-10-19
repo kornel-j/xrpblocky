@@ -125,7 +125,9 @@ if not _skip:
 }
 
 /**
- * Drive mode: arcade drive from the app's on-screen joystick (XRPLib gamepad over XPP).
+ * Drive mode: tank mix from the app's on-screen joystick (XRPLib gamepad over XPP). Stick
+ * right always turns right, also when reversing (drivetrain.arcade flips the turn when
+ * reversing, which made left and right swap around the centre).
  * The app sends a heartbeat in $gamepad.x2; if it stops changing for 0.7 s (link lost,
  * tab closed) the robot stops instead of driving on with the last stick position.
  */
@@ -134,6 +136,12 @@ from XRPLib.gamepad import Gamepad
 import time
 ${TELEMETRY_FN}_xrpb_telemetry()
 _gp = Gamepad.get_default_gamepad()
+_DEAD = 0.08
+def _dz(v):
+    # Ignore tiny stick movements around the centre, then rescale to the full range.
+    if abs(v) < _DEAD:
+        return 0.0
+    return (v - _DEAD if v > 0 else v + _DEAD) / (1 - _DEAD)
 _horn = False
 _beat = None
 _beat_at = time.ticks_ms()
@@ -145,7 +153,12 @@ while True:
     if time.ticks_diff(time.ticks_ms(), _beat_at) > 700:
         drivetrain.stop()
     else:
-        drivetrain.arcade(_gp.get_value(Gamepad.Y1), _gp.get_value(Gamepad.X1))
+        _fwd = _dz(_gp.get_value(Gamepad.Y1))
+        _right = _dz(-_gp.get_value(Gamepad.X1))
+        _l = _fwd + _right
+        _r = _fwd - _right
+        _m = max(1, abs(_l), abs(_r))
+        drivetrain.set_effort(_l / _m, _r / _m)
     _a = _gp.is_button_pressed(Gamepad.BUTTON_A)
     if _a and not _horn:
         try:

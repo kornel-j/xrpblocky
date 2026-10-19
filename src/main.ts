@@ -10,6 +10,7 @@ import { batteryLevel } from './robot/battery';
 import { batteryOf, buildDashboard, updateDashboard } from './ui/dashboard';
 import { closeDialog, dialog, esc, installBlocklyDialogs, toast } from './ui/dialogs';
 import { ICON } from './ui/icons';
+import { tankMix } from './robot/drive';
 import { diag, diagReport } from './ui/diag';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -429,12 +430,7 @@ function setKnob(x: number, y: number) {
   const k = knob.clientWidth / 2;
   knob.style.left = `${r - k + x * (r - k)}px`;
   knob.style.top = `${r - k + y * (r - k)}px`;
-  const fwd = -y;
-  let l = fwd + x;
-  let rr = fwd - x;
-  const m = Math.max(1, Math.abs(l), Math.abs(rr));
-  l /= m;
-  rr /= m;
+  const [l, rr] = tankMix(x, y);
   const show = (id: string, bar: string, v: number) => {
     $(id).innerHTML = Math.round(v * 100) + '<small>%</small>';
     const b = $(bar);

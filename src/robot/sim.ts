@@ -1,3 +1,4 @@
+import { tankMix } from './drive';
 import { Emitter, type Robot, type RobotInfo, type RobotState, type Telemetry } from './robot';
 
 /** Demo robot for trying the app without hardware. Values are made up. */
@@ -97,13 +98,7 @@ export class SimRobot extends Emitter implements Robot {
 
   sendGamepad(x: number, y: number): void {
     if (!this.driving) return;
-    const fwd = -y;
-    let l = fwd + x;
-    let r = fwd - x;
-    const m = Math.max(1, Math.abs(l), Math.abs(r));
-    l /= m;
-    r /= m;
-    this.effort = [l, r];
+    this.effort = tankMix(x, y);
   }
 
   async identify(): Promise<void> {}
