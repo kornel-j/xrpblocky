@@ -21,7 +21,7 @@ export const TELEMETRY_FN = `def _xrpb_telemetry(rate=5):
 
 export const TELEMETRY_START = TELEMETRY_FN + 'print(_xrpb_telemetry())\n';
 
-/** Prints one line: XRPB|machine|xrplib version|battery V|has dashboard|unique id|slot names */
+/** Prints one line: XRPB|machine|xrplib version|battery V|has dashboard|unique id|free bytes|total bytes|slot names */
 export const INFO = `import sys, os, machine
 _v = '?'
 try:
@@ -49,7 +49,12 @@ try:
                 _s.append(_n[4:-3] + ':' + _f.readline()[2:].strip().split(' \\xb7 ')[0])
 except Exception:
     pass
-print('XRPB|%s|%s|%.3f|%d|%s|%s' % (sys.implementation._machine, _v, _b, _d, ''.join('{:02x}'.format(x) for x in machine.unique_id()), ';'.join(_s)))
+try:
+    _fs = os.statvfs('/')
+    _free, _total = _fs[0] * _fs[3], _fs[0] * _fs[2]
+except Exception:
+    _free, _total = -1, -1
+print('XRPB|%s|%s|%.3f|%d|%s|%d|%d|%s' % (sys.implementation._machine, _v, _b, _d, ''.join('{:02x}'.format(x) for x in machine.unique_id()), _free, _total, ';'.join(_s)))
 `;
 
 export const VOLTAGE = `from XRPLib.board import Board
@@ -75,8 +80,11 @@ gc.collect()
 /** Runs a saved slot now, from the app. */
 export function runSlot(slot: number): string {
   const path = slotPath(slot);
+  // SystemExit ("end program" block) must not reach the raw REPL: it would soft-reset the robot.
   return CLEANUP + `try:
     exec(compile(open('${path}').read(), 'slot${slot}.py', 'exec'), {'__name__': '__main__'})
+except SystemExit:
+    pass
 finally:
     if 'XRPLib.resetbot' in sys.modules:
         del sys.modules['XRPLib.resetbot']
@@ -85,14 +93,17 @@ finally:
 }
 
 /**
- * /main.py: at power-on the robot keeps Bluetooth up, blinks its LED and runs the
- * last uploaded slot when its button is pressed. After ##XRPSTOP## it skips the
- * wait so the app gets a free REPL (same flag file XRPCode uses).
+ * /main.py: works without a computer. After power-on the LED blinks the selected
+ * slot number (slot 0 = one long blink), then stays lit while waiting:
+ *   short press  → run the program in that slot
+ *   long press   → step to the next saved slot (≥ 0.8 s)
+ * When the program ends the robot goes back to waiting, so it can be run again.
+ * Bluetooth stays up the whole time; the app interrupts the wait with Ctrl-C.
+ * After ##XRPSTOP## it skips everything so the app gets a free REPL (same flag file XRPCode uses).
  */
 export function mainRunner(slot: number): string {
-  const path = slotPath(slot);
   return `# XRP Blocky
-import os, sys
+import os, sys, time
 _x = os.dupterm(None, 0)
 if _x is None:
     import ble.blerepl
@@ -107,20 +118,58 @@ try:
             _skip = True
 except OSError:
     pass
-if not _skip:
+
+def _saved():
     try:
-        from XRPLib.board import Board
-        _board = Board.get_default_board()
-        _board.led_blink(2)
-        _board.wait_for_button()
+        return sorted(int(n[4:-3]) for n in os.listdir('${SLOT_DIR}') if n.startswith('slot') and n.endswith('.py'))
+    except Exception:
+        return []
+
+def _show(b, n):
+    b.led_off()
+    time.sleep(0.4)
+    if n == 0:
+        b.led_on()
+        time.sleep(0.8)
+        b.led_off()
+    for _ in range(n):
+        b.led_on()
+        time.sleep(0.15)
+        b.led_off()
+        time.sleep(0.25)
+    time.sleep(0.3)
+    b.led_on()
+
+def _wait_press(b):
+    while not b.is_button_pressed():
+        time.sleep(0.01)
+    t0 = time.ticks_ms()
+    while b.is_button_pressed():
+        time.sleep(0.01)
+    return time.ticks_diff(time.ticks_ms(), t0)
+
+if not _skip:
+    from XRPLib.board import Board
+    _board = Board.get_default_board()
+    _all = _saved()
+    _cur = ${slot} if ${slot} in _all else (_all[0] if _all else None)
+    while _cur is not None:
+        _show(_board, _cur)
+        while _wait_press(_board) >= 800 and len(_all) > 1:
+            _cur = _all[(_all.index(_cur) + 1) % len(_all)]
+            _show(_board, _cur)
         _board.led_off()
-        exec(compile(open('${path}').read(), 'slot${slot}.py', 'exec'), {'__name__': '__main__'})
-    except Exception as _e:
-        sys.print_exception(_e)
-    finally:
-        if 'XRPLib.resetbot' in sys.modules:
-            del sys.modules['XRPLib.resetbot']
-        import XRPLib.resetbot
+        try:
+            exec(compile(open('${SLOT_DIR}/slot%d.py' % _cur).read(), 'slot%d.py' % _cur, 'exec'), {'__name__': '__main__'})
+        except SystemExit:
+            pass
+        except Exception as _e:
+            sys.print_exception(_e)
+        finally:
+            if 'XRPLib.resetbot' in sys.modules:
+                del sys.modules['XRPLib.resetbot']
+            import XRPLib.resetbot
+        time.sleep(0.5)
 `;
 }
 

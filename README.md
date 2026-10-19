@@ -42,7 +42,7 @@ A robot gyári firmware-ét (MicroPython + XRPLib) használja, a robotra nem kel
 
 - **Bluetooth**: Nordic UART szolgáltatás (`6e400001-…`), ugyanaz, amit az XRPCode használ.
 - **Programfuttatás**: MicroPython *raw REPL*. Az app a programot `/slots/slotN.py` fájlba menti,
-  a `/main.py`-t pedig egy kis indítóra cseréli (bekapcsolás után gombnyomásra futtatja a legutóbbi programot), majd elindítja.
+  a `/main.py`-t pedig egy kis indítóra cseréli (számítógép nélkül: rövid gombnyomás = indítás, hosszú = következő mentett hely), majd elindítja.
   ⚠️ Ez felülírja a robot korábbi `main.py` fájlját, ahogy az XRPCode is teszi futtatáskor.
 - **Leállítás**: Ctrl-C, ha az nem jut át, akkor az XRPLib `##XRPSTOP##` üzenete (a robot újraindul, az app visszacsatlakozik).
 - **Műszerfal**: az XRPLib `Dashboard` + XPP protokoll (`XRPLib/puppet.py`) a második Bluetooth-csatornán.

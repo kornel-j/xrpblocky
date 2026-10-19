@@ -67,6 +67,11 @@ export class SimRobot extends Emitter implements Robot {
     this.emit('state', s);
   }
 
+  async save(code: string, slot: number): Promise<boolean> {
+    this.info.slots[slot] = code.split('\n')[0].replace(/^#\s*/, '').split(' · ')[0];
+    return true;
+  }
+
   async run(code: string, slot: number): Promise<void> {
     await this.stop();
     this.setState('busy');

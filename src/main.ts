@@ -294,7 +294,7 @@ function toggleRobotMenu() {
   m.className = 'menu';
   m.id = 'rmenu';
   m.innerHTML = `<div style="display:flex;align-items:center;gap:10px"><span style="width:14px;height:14px;border-radius:50%;background:${robotLabel.color}"></span><b>${esc(robotLabel.name)}</b><span class="num" style="color:var(--muted);font-size:12px">${esc(r.name)}</span></div>
-    <div class="kv"><span>${t('board')}</span><b>${esc(r.info?.machine ?? '—')}</b><span>${t('fw')}</span><b>${esc(r.info?.xrplib ?? '—')}</b><span>${t('link')}</span><b>${r.simulated ? 'Demo' : 'Bluetooth LE'}</b></div>
+    <div class="kv"><span>${t('board')}</span><b>${esc(r.info?.machine ?? '—')}</b><span>${t('fw')}</span><b>${esc(r.info?.xrplib ?? '—')}</b><span>${t('link')}</span><b>${r.simulated ? 'Demo' : 'Bluetooth LE'}</b>${r.info?.storageTotal ? `<span>${t('storage')}</span><b>${t('storageVal', { f: Math.round((r.info.storageFree ?? 0) / 1024), t: Math.round(r.info.storageTotal / 1024) })}</b>` : ''}</div>
     <button class="btn" type="button" id="mId">${ICON.bulb}${t('identify')}</button>
     <button class="btn" type="button" id="mLog">${ICON.code}${t('copyLog')}</button>
     <button class="btn" type="button" id="mDis">${t('disconnect')}</button>`;
@@ -314,17 +314,36 @@ document.addEventListener('pointerdown', (e) => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeDialog(); closeMenu(); } });
 
 /* ---------------- Slots ---------------- */
-$('slotBtn').onclick = () => {
+$('slotBtn').onclick = () => openSlots();
+
+function openSlots() {
   const names = robot?.info?.slots ?? {};
+  const online = robot && robot.state !== 'disconnected';
   dialog(`<h2>${t('slotTitle')}</h2><p>${t('slotSub')}</p>
     <div class="slots">${Array.from({ length: 10 }, (_, i) => `<button type="button" data-s="${i}" aria-pressed="${i === slot}"><b>${i}</b><span>${names[i] ? esc(names[i]) : t('empty')}</span></button>`).join('')}</div>
-    <div class="actions"><button class="btn" type="button" id="sNo">${t('cancel')}</button></div>`, (root) => {
+    <div class="support">${t('offlineHelp')}</div>
+    <div class="actions"><button class="btn" type="button" id="sNo">${t('cancel')}</button>
+      <button class="btn primary" type="button" id="sSave"${online ? '' : ' disabled'}>${t('saveToRobot', { n: slot })}</button></div>`, (root) => {
     root.querySelectorAll<HTMLButtonElement>('[data-s]').forEach((b) => {
-      b.onclick = () => { slot = Number(b.dataset.s); store.set('slot', String(slot)); closeDialog(); renderTop(); };
+      b.onclick = () => {
+        slot = Number(b.dataset.s);
+        store.set('slot', String(slot));
+        root.querySelectorAll('[data-s]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        $('sSave').textContent = t('saveToRobot', { n: slot });
+        renderTop();
+      };
     });
     $('sNo').onclick = closeDialog;
+    $('sSave').onclick = async () => {
+      if (!robot) return;
+      closeDialog();
+      refreshPython();
+      setDriving(false);
+      toast(t('uploading', { n: slot }));
+      if (await robot.save(python, slot)) toast(t('savedSlot', { n: slot }));
+    };
   });
-};
+}
 
 /* ---------------- Console ---------------- */
 const con = $('console');

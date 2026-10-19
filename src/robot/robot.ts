@@ -35,6 +35,9 @@ export interface RobotInfo {
   hasDashboard: boolean;
   /** slot number → program name, as stored on the robot */
   slots: Record<number, string>;
+  /** Flash file system space in bytes */
+  storageFree?: number;
+  storageTotal?: number;
 }
 
 export type RobotState = 'connecting' | 'ready' | 'busy' | 'running' | 'reconnecting' | 'disconnected';
@@ -54,6 +57,7 @@ export interface Robot {
   info: RobotInfo | null;
   telemetry: Telemetry;
   run(code: string, slot: number): Promise<void>;
+  save(code: string, slot: number): Promise<boolean>;
   drive(): Promise<void>;
   stop(): Promise<void>;
   sendGamepad(x: number, y: number, a: boolean, b: boolean): void;
@@ -139,13 +143,17 @@ export class BleRobot extends Emitter implements Robot {
       }
       const line = r.out.split('\n').find((l) => l.startsWith('XRPB|'));
       if (line) {
-        const [, machine, xrplib, volts, dash, id, slots] = line.trim().split('|');
+        const [, machine, xrplib, volts, dash, id, free, total, ...rest] = line.trim().split('|');
         const slotMap: Record<number, string> = {};
-        for (const s of (slots ?? '').split(';').filter(Boolean)) {
-          const [n, name] = s.split(':');
-          slotMap[Number(n)] = name || '';
+        for (const s of rest.join('|').split(';').filter(Boolean)) {
+          const i = s.indexOf(':');
+          slotMap[Number(s.slice(0, i))] = s.slice(i + 1);
         }
-        this.info = { machine, xrplib, id, hasDashboard: dash === '1' && this.link.hasDataChannel, slots: slotMap };
+        this.info = {
+          machine, xrplib, id, hasDashboard: dash === '1' && this.link.hasDataChannel, slots: slotMap,
+          storageFree: Number(free) >= 0 ? Number(free) : undefined,
+          storageTotal: Number(total) > 0 ? Number(total) : undefined
+        };
         const v = parseFloat(volts);
         if (v > 0) this.telemetry = { ...this.telemetry, voltage: this.vFilter.push(v, performance.now()), voltageRaw: v };
         this.emit('telemetry', this.telemetry);
@@ -225,7 +233,8 @@ export class BleRobot extends Emitter implements Robot {
   }
 
   /** Saves the program to a slot, makes it the button-start program, and runs it. */
-  async run(code: string, slot: number): Promise<void> {
+  /** Stores the program in a slot on the robot's flash and makes it the button-start program. */
+  async save(code: string, slot: number): Promise<boolean> {
     if (this.running) await this.stop();
     this.setState('busy');
     try {
@@ -234,11 +243,17 @@ export class BleRobot extends Emitter implements Robot {
     } catch (e) {
       this.emit('output', String((e as Error).message ?? e), 'err');
       this.setState('ready');
-      return;
+      return false;
     }
     const name = code.split('\n')[0].replace(/^#\s*/, '').split(' · ')[0];
     if (this.info) this.info.slots[slot] = name;
-    void this.exec(S.runSlot(slot), `▶ ${slot}`);
+    this.emit('output', t('savedSlot', { n: slot }), 'sys');
+    this.setState('ready');
+    return true;
+  }
+
+  async run(code: string, slot: number): Promise<void> {
+    if (await this.save(code, slot)) void this.exec(S.runSlot(slot), `▶ ${slot}`);
   }
 
   async drive(): Promise<void> {
