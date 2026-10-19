@@ -1,0 +1,25 @@
+{
+  "name": "xrpblocky",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Scratch/SPIKE-stílusú blokkos programozás az XRP robothoz, Bluetooth-tal, élő műszerfallal.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "blockly": "11.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/web-bluetooth": "0.0.20",
+    "typescript": "5.8.3",
+    "vite": "6.4.1",
+    "vite-plugin-pwa": "1.0.0",
+    "vitest": "3.2.4"
+  }
+}

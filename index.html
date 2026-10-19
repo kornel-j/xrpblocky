@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2F5BEA">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>XRP Blocky</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 36 36" aria-hidden="true">
+      <rect x="1" y="1" width="34" height="34" rx="10" fill="var(--accent)"/>
+      <path d="M9 14h6l2 2h2l2-2h6v10H9z" fill="var(--accent-fg)"/>
+      <circle cx="13" cy="25" r="3" fill="var(--accent)" stroke="var(--accent-fg)" stroke-width="2"/>
+      <circle cx="23" cy="25" r="3" fill="var(--accent)" stroke="var(--accent-fg)" stroke-width="2"/>
+      <rect x="15" y="9" width="6" height="4" rx="1.5" fill="var(--accent-fg)"/>
+    </svg>
+    <label class="sr" for="projName" data-i18n="projectName"></label>
+    <input id="projName" class="projname" value="">
+    <span class="saved" id="saved"></span>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn slotbtn" id="slotBtn" type="button"><span class="label" data-i18n="slot"></span> <b id="slotNum">3</b></button>
+  <button class="runbtn" id="runBtn" type="button"></button>
+  <div class="spacer"></div>
+  <button class="conn" id="connBtn" type="button"></button>
+  <div class="lang" role="group" aria-label="Nyelv / Language">
+    <button type="button" id="langHu" aria-pressed="true">HU</button>
+    <button type="button" id="langEn" aria-pressed="false">EN</button>
+  </div>
+  <button class="btn icon paneltoggle" id="panelToggle" type="button"></button>
+</header>
+
+<main>
+  <div id="wsWrap">
+    <div id="ws"></div>
+    <div class="demo-chip" id="demoChip"></div>
+    <div class="wsctl">
+      <button class="btn" id="zoomIn" type="button"></button>
+      <button class="btn" id="zoomOut" type="button"></button>
+      <button class="btn" id="undoBtn" type="button"></button>
+    </div>
+  </div>
+  <aside class="side" id="side">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabDash" aria-selected="true" type="button"></button>
+      <button role="tab" id="tabPy" aria-selected="false" type="button"></button>
+      <button role="tab" id="tabDrive" aria-selected="false" type="button"></button>
+    </div>
+    <section class="pane" id="paneDash"></section>
+    <section class="pane" id="panePy" hidden>
+      <div class="codehead"><span id="pyInfo"></span><button class="btn" id="copyPy" type="button" style="height:34px"></button></div>
+      <pre class="code" id="pyCode"></pre>
+      <div class="codehead"><span data-i18n="console"></span><button class="btn" id="clearCon" type="button" style="height:34px" data-i18n="clear"></button></div>
+      <div class="console" id="console"></div>
+      <p class="note" data-i18n="pyNote"></p>
+    </section>
+    <section class="pane" id="paneDrive" hidden>
+      <p class="note" data-i18n="driveNote"></p>
+      <div class="drivebar"><button class="btn primary" id="driveBtn" type="button"></button></div>
+      <div class="joywrap"><div class="joy" id="joy"><div class="knob" id="knob"></div></div></div>
+      <div class="effort">
+        <div class="card"><h3 data-i18n="leftWheel"></h3><b class="big" id="effL">0<small>%</small></b><div class="ebar"><i id="ebL"></i></div></div>
+        <div class="card"><h3 data-i18n="rightWheel"></h3><b class="big" id="effR">0<small>%</small></b><div class="ebar"><i id="ebR"></i></div></div>
+      </div>
+      <div class="abtns">
+        <button class="btn" id="hornBtn" type="button"></button>
+        <button class="btn" id="lightBtn" type="button"></button>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<div id="layer"></div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
