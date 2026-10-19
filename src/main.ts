@@ -202,20 +202,26 @@ function openConnect() {
     ${bt ? `<div class="support">${t('cSupport')}</div>` : `<p class="warnbox">${t('noBt')}</p>`}
     <div class="actions">
       <button class="btn" type="button" id="cDemo">${t('demo')}</button>
+      ${bt && lastDevice ? `<button class="btn" type="button" id="cAgain">${esc(t('reconnectTo', { n: lastDevice.name ?? 'XRP' }))}</button>` : ''}
       ${bt ? `<button class="btn primary" type="button" id="cGo">${ICON.bt}${t('search')}</button>` : ''}
     </div>`, () => {
     $('cDemo').onclick = () => { closeDialog(); robot?.disconnect(); attach(new SimRobot()); toast(t('connectedTo', { n: 'XRP-DEMO' })); };
-    if (bt) $('cGo').onclick = connectBle;
+    if (bt) $('cGo').onclick = () => void connectBle();
+    if (bt && lastDevice) $('cAgain').onclick = () => void connectBle(lastDevice!);
   });
 }
 
-async function connectBle() {
+/** The robot picked earlier in this page session; it reconnects without the chooser. */
+let lastDevice: BluetoothDevice | null = null;
+
+async function connectBle(known?: BluetoothDevice) {
   let device: BluetoothDevice;
   try {
-    device = await BleLink.choose(); // needs the click's user activation, so it comes first
+    device = known ?? (await BleLink.choose()); // the chooser needs the click's user activation, so it comes first
   } catch {
     return; // chooser cancelled
   }
+  lastDevice = device;
   dialog(`<div class="spinner"></div><h2 style="text-align:center">${t('connecting')}</h2><p style="text-align:center">${t('connectingSub')}</p>`, undefined, false);
   robot?.disconnect();
   const r = new BleRobot(device);
@@ -375,6 +381,7 @@ function setDriving(on: boolean) {
 $('driveBtn').onclick = async () => {
   if (!robot || robot.state === 'disconnected') { toast(t('needRobot')); openConnect(); return; }
   if (driving) { setDriving(false); await robot.stop(); return; }
+  if (robot.info && !robot.info.hasDashboard) { toast(t('needNewLib')); return; }
   setDriving(true);
   await robot.drive();
 };

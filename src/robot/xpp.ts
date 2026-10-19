@@ -169,12 +169,28 @@ export class XppTable {
   }
 }
 
-/** Gamepad frame the robot's XRPLib.gamepad reads ($gamepad.* are write-only on the robot). */
-export function gamepadPacket(x1: number, y1: number, buttonA = false, buttonB = false): Uint8Array {
+/**
+ * Gamepad frames for XRPLib.gamepad ($gamepad.* are write-only on the robot).
+ * Two variables per frame keeps each one at 19 bytes, inside the robot's 20-byte
+ * characteristic buffer.
+ */
+export function gamepadAxesFrame(x1: number, y1: number): Uint8Array {
   return packMessage(MsgType.VAR_UPDATE, encodeVarUpdates([
     { id: STANDARD_VARS['$gamepad.x1'], type: VarType.FLOAT, value: x1 },
-    { id: STANDARD_VARS['$gamepad.y1'], type: VarType.FLOAT, value: y1 },
+    { id: STANDARD_VARS['$gamepad.y1'], type: VarType.FLOAT, value: y1 }
+  ]));
+}
+
+export function gamepadButtonsFrame(buttonA: boolean, buttonB: boolean): Uint8Array {
+  return packMessage(MsgType.VAR_UPDATE, encodeVarUpdates([
     { id: STANDARD_VARS['$gamepad.button_a'], type: VarType.INT, value: buttonA ? 1 : 0 },
     { id: STANDARD_VARS['$gamepad.button_b'], type: VarType.INT, value: buttonB ? 1 : 0 }
+  ]));
+}
+
+/** Heartbeat in $gamepad.x2: the drive program stops the robot when it stops changing. */
+export function gamepadBeatFrame(n: number): Uint8Array {
+  return packMessage(MsgType.VAR_UPDATE, encodeVarUpdates([
+    { id: STANDARD_VARS['$gamepad.x2'], type: VarType.FLOAT, value: (n % 100) / 100 }
   ]));
 }

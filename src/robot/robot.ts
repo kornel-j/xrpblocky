@@ -1,7 +1,8 @@
 import { BleLink, STOP_MESSAGE } from './ble';
 import { RawRepl, ReplTimeout } from './repl';
-import { XppParser, XppTable, gamepadPacket } from './xpp';
+import { XppParser, XppTable, gamepadAxesFrame, gamepadBeatFrame, gamepadButtonsFrame } from './xpp';
 import * as S from './snippets';
+import { t } from '../i18n/ui';
 
 /** XRP drive motors: 48.75:1 gearbox × 12 counts per motor turn. */
 const COUNTS_PER_REV = 585;
@@ -90,9 +91,13 @@ export class BleRobot extends Emitter implements Robot {
       onData: (b) => this.onData(b),
       onDrop: (retry) => {
         this.repl.reset();
+        this.emit('output', retry ? t('linkLost') : t('linkGone'), 'sys');
         this.setState(retry ? 'reconnecting' : 'disconnected');
       },
-      onRestore: () => void this.afterConnect()
+      onRestore: () => {
+        this.emit('output', t('linkBack'), 'sys');
+        void this.afterConnect();
+      }
     });
     this.repl = new RawRepl({ write: (b) => this.link.writeRepl(b) });
     this.repl.onIdleOutput = (t) => this.emit('output', t, 'out');
@@ -246,8 +251,26 @@ export class BleRobot extends Emitter implements Robot {
     }
   }
 
+  private lastPad = { x: NaN, y: NaN, a: false, b: false, at: 0 };
+  private beat = 0;
+  private lastBeat = 0;
+
+  /** Sends joystick state when it changes, and refreshes it every 300 ms in case a frame was lost. */
   sendGamepad(x: number, y: number, a: boolean, b: boolean): void {
-    void this.link.writeData(gamepadPacket(x, y, a, b));
+    const p = this.lastPad;
+    const now = performance.now();
+    const refresh = now - p.at > 300;
+    if (refresh || Math.abs(x - p.x) > 0.01 || Math.abs(y - p.y) > 0.01) {
+      this.link.writeData('axes', gamepadAxesFrame(x, y));
+    }
+    if (refresh || a !== p.a || b !== p.b) {
+      this.link.writeData('buttons', gamepadButtonsFrame(a, b));
+    }
+    if (now - this.lastBeat > 200) {
+      this.lastBeat = now;
+      this.link.writeData('beat', gamepadBeatFrame(++this.beat));
+    }
+    this.lastPad = { x, y, a, b, at: refresh ? now : p.at };
   }
 
   async identify(rgb: [number, number, number]): Promise<void> {

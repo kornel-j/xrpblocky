@@ -7,7 +7,7 @@ export const slotPath = (slot: number) => `${SLOT_DIR}/slot${slot}.py`;
  * Starts XRPLib's dashboard (XPP sensor stream) when a Bluetooth app is connected.
  * Without a BLE connection XPP would fall back to USB stdio and disable Ctrl-C, so it stays off.
  */
-export const TELEMETRY_FN = `def _xrpb_telemetry(rate=10):
+export const TELEMETRY_FN = `def _xrpb_telemetry(rate=5):
     try:
         from ble.blerepl import uart
         if uart is None or len(uart._connections) == 0:
@@ -124,21 +124,34 @@ if not _skip:
 `;
 }
 
-/** Drive mode: arcade drive from the app's on-screen joystick (XRPLib gamepad over XPP). */
+/**
+ * Drive mode: arcade drive from the app's on-screen joystick (XRPLib gamepad over XPP).
+ * The app sends a heartbeat in $gamepad.x2; if it stops changing for 0.7 s (link lost,
+ * tab closed) the robot stops instead of driving on with the last stick position.
+ */
 export const DRIVE_PROGRAM = `from XRPLib.defaults import *
 from XRPLib.gamepad import Gamepad
 import time
 ${TELEMETRY_FN}_xrpb_telemetry()
 _gp = Gamepad.get_default_gamepad()
 _horn = False
+_beat = None
+_beat_at = time.ticks_ms()
 while True:
-    drivetrain.arcade(_gp.get_value(Gamepad.Y1), _gp.get_value(Gamepad.X1))
+    _b = _gp.get_value(Gamepad.X2)
+    if _b != _beat:
+        _beat = _b
+        _beat_at = time.ticks_ms()
+    if time.ticks_diff(time.ticks_ms(), _beat_at) > 700:
+        drivetrain.stop()
+    else:
+        drivetrain.arcade(_gp.get_value(Gamepad.Y1), _gp.get_value(Gamepad.X1))
     _a = _gp.is_button_pressed(Gamepad.BUTTON_A)
     if _a and not _horn:
         try:
             buzzer.play_note('C5', 'eighth', blocking=False)
         except Exception:
-            board.led_blink(8)
+            pass
     _horn = _a
     if _gp.is_button_pressed(Gamepad.BUTTON_B):
         board.led_on()

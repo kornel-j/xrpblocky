@@ -30,6 +30,8 @@ const hu = {
   empty: 'üres', running: 'Fut a(z) {n}. helyen', stopped: 'Program leállítva', uploading: 'Feltöltés a(z) {n}. helyre…',
   needRobot: 'Előbb csatlakoztass egy robotot.', connectedTo: 'Csatlakozva: {n}', disconnectedT: 'A robot kapcsolata megszakadt',
   reconnecting: 'Újracsatlakozás…', busy: 'A robot dolgozik…',
+  linkLost: 'A Bluetooth-kapcsolat megszakadt, újracsatlakozás…', linkBack: 'Újra csatlakozva', linkGone: 'Nem sikerült újracsatlakozni',
+  reconnectTo: 'Újracsatlakozás: {n}', needNewLib: 'A vezetéshez újabb XRPLib kell. Frissítsd az XRPCode-dal.',
   ok: 'OK', newVar: 'Új változó neve'
 };
 
@@ -65,6 +67,8 @@ const en: Record<UiKey, string> = {
   empty: 'empty', running: 'Running in slot {n}', stopped: 'Program stopped', uploading: 'Uploading to slot {n}…',
   needRobot: 'Connect a robot first.', connectedTo: 'Connected: {n}', disconnectedT: 'Lost the connection to the robot',
   reconnecting: 'Reconnecting…', busy: 'The robot is busy…',
+  linkLost: 'Bluetooth connection lost, reconnecting…', linkBack: 'Reconnected', linkGone: 'Could not reconnect',
+  reconnectTo: 'Reconnect: {n}', needNewLib: 'Driving needs a newer XRPLib. Update it with XRPCode.',
   ok: 'OK', newVar: 'New variable name'
 };
 

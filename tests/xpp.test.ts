@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MsgType, VarType, XppParser, XppTable, decodeVarUpdates, encodeVarUpdates, gamepadPacket, packMessage } from '../src/robot/xpp';
+import { MsgType, VarType, XppParser, XppTable, decodeVarUpdates, encodeVarUpdates, gamepadAxesFrame, gamepadBeatFrame, gamepadButtonsFrame, packMessage } from '../src/robot/xpp';
 
 /** Builds the same bytes XRPLib's Puppet._send_batched_var_updates sends. */
 function robotUpdate(vars: [number, number, number][]): Uint8Array {
@@ -44,14 +44,18 @@ describe('XPP', () => {
     expect(table.values.get('score')).toBe(7);
   });
 
-  it('frames gamepad data with the XRPLib variable ids', () => {
-    const pkt = gamepadPacket(0.5, -1, true, false);
-    expect([...pkt.slice(0, 2)]).toEqual([0xaa, 0x55]);
-    expect(pkt[2]).toBe(MsgType.VAR_UPDATE);
-    expect([...pkt.slice(-2)]).toEqual([0x55, 0xaa]);
-    const ups = decodeVarUpdates(pkt.slice(4, -2));
-    expect(ups.map((u) => u.id)).toEqual([1, 2, 5, 6]);
-    expect(ups[1].value).toBe(-1);
-    expect(ups[2].value).toBe(1);
+  it('keeps every gamepad frame inside the robot\'s 20-byte buffer', () => {
+    const frames = [gamepadAxesFrame(0.5, -1), gamepadButtonsFrame(true, false), gamepadBeatFrame(7)];
+    for (const f of frames) {
+      expect(f.length).toBeLessThanOrEqual(20);
+      expect([...f.slice(0, 2)]).toEqual([0xaa, 0x55]);
+      expect(f[2]).toBe(MsgType.VAR_UPDATE);
+      expect([...f.slice(-2)]).toEqual([0x55, 0xaa]);
+    }
+    const axes = decodeVarUpdates(gamepadAxesFrame(0.5, -1).slice(4, -2));
+    expect(axes.map((u) => [u.id, u.value])).toEqual([[1, 0.5], [2, -1]]);
+    const buttons = decodeVarUpdates(gamepadButtonsFrame(true, false).slice(4, -2));
+    expect(buttons.map((u) => [u.id, u.value])).toEqual([[5, 1], [6, 0]]);
+    expect(decodeVarUpdates(gamepadBeatFrame(7).slice(4, -2))[0].id).toBe(3);
   });
 });
